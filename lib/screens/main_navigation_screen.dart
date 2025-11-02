@@ -134,10 +134,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ? FloatingActionButton(
                   onPressed: () {
                     HapticFeedback.heavyImpact();
+                    // Simulate high risk for demo
                     context.read<AppBloc>().add(SimulateWalk());
                   },
-                  backgroundColor: Colors.green[700],
-                  child: const Icon(Icons.directions_walk, color: Colors.white),
+                  backgroundColor: Colors.red[600],
+                  child: const Icon(Icons.warning, color: Colors.white),
+                  tooltip: 'Demo High Risk',
                 )
               : null,
         );
@@ -250,37 +252,43 @@ class HomeDashboardPage extends StatelessWidget {
   Widget _buildHeader(BuildContext context, AppReady state) {
     return Row(
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Muraho, ${state.profile.name}!',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${state.profile.village} • ${_getGreeting()}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Goat icon
         Container(
-          width: 48,
-          height: 48,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: Colors.green[100],
             shape: BoxShape.circle,
           ),
           child: Icon(
-            Icons.person,
+            Icons.pets,
             color: Colors.green[700],
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
+
+        Expanded(
+          child: Text(
+            '${state.profile.name} · ${state.profile.village}',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+          ),
+        ),
+
+        // Settings icon
+        IconButton(
+          onPressed: () {
+            // Navigate to profile page
+            final mainNavState =
+                context.findAncestorStateOfType<_MainNavigationScreenState>();
+            mainNavState?._onTabTapped(4);
+          },
+          icon: Icon(
+            Icons.settings,
+            color: Colors.grey[600],
             size: 24,
           ),
         ),
@@ -289,9 +297,24 @@ class HomeDashboardPage extends StatelessWidget {
   }
 
   Widget _buildRiskCircle(BuildContext context, AppReady state) {
-    final latestPrediction = state.predictions.isNotEmpty ? state.predictions.last : null;
-    final riskScore = latestPrediction?.riskScore ?? 0.0;
-    final riskCategory = latestPrediction?.riskCategory ?? 'Unknown';
+    final latestPrediction =
+        state.predictions.isNotEmpty ? state.predictions.last : null;
+    final riskScore =
+        latestPrediction?.riskScore ?? 81.0; // Default to high risk for demo
+    final riskCategory = riskScore > 70
+        ? 'HIGH — ACT NOW'
+        : latestPrediction?.riskCategory ?? 'Unknown';
+
+    // Trigger vibration and voice for high risk
+    if (riskScore > 70) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        HapticFeedback.heavyImpact();
+        Future.delayed(const Duration(milliseconds: 200),
+            () => HapticFeedback.heavyImpact());
+        Future.delayed(const Duration(milliseconds: 400),
+            () => HapticFeedback.heavyImpact());
+      });
+    }
 
     return Container(
       width: double.infinity,
@@ -300,15 +323,15 @@ class HomeDashboardPage extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.grey[50]!,
-          ],
+          colors: riskScore > 70
+              ? [Colors.red[50]!, Colors.red[100]!]
+              : [Colors.white, Colors.grey[50]!],
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color:
+                (riskScore > 70 ? Colors.red : Colors.black).withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -317,52 +340,114 @@ class HomeDashboardPage extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'Umuvunyi wawe / Your Risk',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          // Big risk circle
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 200,
-                height: 200,
-                child: CircularProgressIndicator(
-                  value: riskScore / 100,
-                  strokeWidth: 12,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    _getRiskColor(riskScore),
-                  ),
+            'RISK',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2.0,
                 ),
-              ),
-              Column(
-                children: [
-                  Text(
-                    '${riskScore.toInt()}%',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: _getRiskColor(riskScore),
-                    ),
-                  ),
-                  Text(
-                    riskCategory,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.grey[600],
+          ),
+          const SizedBox(height: 16),
+
+          // Risk circle with pulsing animation for high risk
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 1000),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Pulsing outer ring for high risk
+                if (riskScore > 70) ...[
+                  Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.red.withOpacity(0.3),
+                        width: 2,
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ],
+
+                // Main risk circle
+                SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: CircularProgressIndicator(
+                    value: riskScore / 100,
+                    strokeWidth: 15,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      _getRiskColor(riskScore),
+                    ),
+                  ),
+                ),
+
+                // Center content
+                Column(
+                  children: [
+                    Text(
+                      '${riskScore.toInt()}%',
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: _getRiskColor(riskScore),
+                            fontSize: 48,
+                          ),
+                    ),
+                    Text(
+                      riskCategory,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: riskScore > 70
+                                ? Colors.red[800]
+                                : Colors.grey[600],
+                            fontWeight: FontWeight.bold,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          
+
           const SizedBox(height: 24),
-          
-          if (latestPrediction != null && riskScore > 70) ...[
+
+          // Voice and vibration indicators for high risk
+          if (riskScore > 70) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.vibration,
+                    color: Colors.red[700],
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.volume_up,
+                    color: Colors.red[700],
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Kirundi voice message
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -370,23 +455,51 @@ class HomeDashboardPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.red[200]!),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning, color: Colors.red[600], size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      latestPrediction.advice,
-                      style: TextStyle(
-                        color: Colors.red[800],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+              child: Text(
+                '"Umuvunyi: ${riskScore.toInt()}%. Gura inka imwe..."',
+                style: TextStyle(
+                  color: Colors.red[800],
+                  fontWeight: FontWeight.w500,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
-          ] else if (latestPrediction != null) ...[
+            const SizedBox(height: 20),
+
+            // PREVENT NOW button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Navigate to prevent action page
+                  final mainNavState = context
+                      .findAncestorStateOfType<_MainNavigationScreenState>();
+                  mainNavState
+                      ?._onTabTapped(2); // Navigate to prevent action tab
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[600],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 4,
+                ),
+                child: const Text(
+                  'PREVENT NOW',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ] else ...[
+            // Low/medium risk display
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -400,7 +513,8 @@ class HomeDashboardPage extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      latestPrediction.advice,
+                      latestPrediction?.advice ??
+                          'Komeza gutyo, uri ku nzira nziza',
                       style: TextStyle(
                         color: Colors.green[800],
                         fontWeight: FontWeight.w500,
@@ -423,12 +537,11 @@ class HomeDashboardPage extends StatelessWidget {
         Text(
           'Ibikorwa / Quick Actions',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
         ),
         const SizedBox(height: 16),
-        
         Row(
           children: [
             Expanded(
@@ -520,12 +633,11 @@ class HomeDashboardPage extends StatelessWidget {
         Text(
           'Ibikorwa bya vuba / Recent Activity',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
         ),
         const SizedBox(height: 16),
-        
         if (state.predictions.isEmpty) ...[
           Container(
             width: double.infinity,
@@ -546,76 +658,78 @@ class HomeDashboardPage extends StatelessWidget {
                 Text(
                   'Nta bikorwa biri',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+                        color: Colors.grey[600],
+                      ),
                 ),
                 Text(
                   'No recent activity',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[500],
-                  ),
+                        color: Colors.grey[500],
+                      ),
                 ),
               ],
             ),
           ),
         ] else ...[
-          ...state.predictions.take(3).map((prediction) => 
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
+          ...state.predictions
+              .take(3)
+              .map((prediction) => Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: _getRiskColor(prediction.riskScore).withOpacity(0.1),
-                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
                     ),
-                    child: Icon(
-                      _getRiskIcon(prediction.riskScore),
-                      color: _getRiskColor(prediction.riskScore),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          'Risk Assessment: ${prediction.riskScore.toInt()}%',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _getRiskColor(prediction.riskScore)
+                                .withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _getRiskIcon(prediction.riskScore),
+                            color: _getRiskColor(prediction.riskScore),
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Risk Assessment: ${prediction.riskScore.toInt()}%',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatDate(prediction.date),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         Text(
-                          _formatDate(prediction.date),
+                          '${prediction.inferenceTimeMs}ms',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Colors.grey[500],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  Text(
-                    '${prediction.inferenceTimeMs}ms',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            )
-          ).toList(),
+                  ))
+              .toList(),
         ],
       ],
     );
@@ -643,7 +757,7 @@ class HomeDashboardPage extends StatelessWidget {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays == 0) return 'Today';
     if (difference.inDays == 1) return 'Yesterday';
     if (difference.inDays < 7) return '${difference.inDays} days ago';

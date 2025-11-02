@@ -17,6 +17,8 @@ void main() async {
 Future<void> _requestPermissions() async {
   await [
     Permission.sensors,
+    Permission.sms,
+    Permission.phone,
   ].request();
 }
 
