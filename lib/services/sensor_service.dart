@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:battery_plus/battery_plus.dart';
-import 'package:telephony/telephony.dart';
 import '../models/daily_data.dart';
 
 class SensorService {
@@ -11,7 +10,6 @@ class SensorService {
   SensorService._internal();
 
   final Battery _battery = Battery();
-  final Telephony _telephony = Telephony.instance;
   
   StreamSubscription<AccelerometerEvent>? _accelSubscription;
   final List<double> _dailySteps = [];
@@ -21,7 +19,6 @@ class SensorService {
   void startCollection() {
     _accelSubscription = accelerometerEventStream().listen(_onAccelerometerEvent);
     _battery.onBatteryStateChanged.listen(_onBatteryStateChanged);
-    _listenToSMS();
   }
 
   void _onAccelerometerEvent(AccelerometerEvent event) {
@@ -38,21 +35,6 @@ class SensorService {
     }
   }
 
-  void _listenToSMS() async {
-    final messages = await _telephony.getInboxSms(
-      columns: [SmsColumn.DATE, SmsColumn.BODY],
-      filter: SmsFilter.where(SmsColumn.DATE)
-          .greaterThan(DateTime.now().subtract(Duration(days: 1)).millisecondsSinceEpoch.toString()),
-    );
-
-    _smsLoanCount = messages.where((msg) => 
-      msg.body?.toLowerCase().contains('inguzanyo') == true ||
-      msg.body?.toLowerCase().contains('kubaka') == true ||
-      msg.body?.toLowerCase().contains('tala') == true ||
-      msg.body?.toLowerCase().contains('debt') == true
-    ).length;
-  }
-
   DailyData getDailyData() {
     double stepsMean = _dailySteps.isEmpty ? 0 : _dailySteps.reduce((a, b) => a + b) / _dailySteps.length;
     double stepsStd = _calculateStandardDeviation(_dailySteps);
@@ -61,6 +43,9 @@ class SensorService {
       time.hour >= 18 || time.hour <= 6
     ).length;
     double chargeNightPct = _chargeTimes.isEmpty ? 0 : nightCharges / _chargeTimes.length;
+
+    // Mock SMS data for demo
+    _smsLoanCount = DateTime.now().day % 3; // Simulate 0-2 loan SMS per day
 
     return DailyData(
       date: DateTime.now(),

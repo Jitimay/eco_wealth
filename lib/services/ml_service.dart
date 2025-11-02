@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:tflite_flutter/tflite_flutter.dart';
 import '../models/daily_data.dart';
 import '../models/risk_prediction.dart';
 
@@ -8,25 +7,12 @@ class MLService {
   factory MLService() => _instance;
   MLService._internal();
 
-  Interpreter? _interpreter;
   bool _isInitialized = false;
 
   Future<void> initialize() async {
-    try {
-      final options = InterpreterOptions()
-        ..useNnApiForAndroid = true // Enable NPU acceleration
-        ..threads = 2;
-      
-      _interpreter = await Interpreter.fromAsset(
-        'assets/models/echo_wealth.tflite',
-        options: options,
-      );
-      _isInitialized = true;
-    } catch (e) {
-      debugPrint('Failed to load model: $e');
-      // Create mock interpreter for development
-      _isInitialized = false;
-    }
+    // Mock initialization for demo
+    await Future.delayed(Duration(milliseconds: 100));
+    _isInitialized = true;
   }
 
   Future<RiskPrediction> predictRisk(List<DailyData> weekData) async {
@@ -36,53 +22,54 @@ class MLService {
       return _mockPrediction(stopwatch.elapsedMilliseconds);
     }
 
-    try {
-      // Prepare input features (21 features per day, 7 days)
-      final input = _prepareFeatures(weekData);
-      final output = Float32List(1);
+    // Simple rule-based prediction for demo
+    final features = _prepareFeatures(weekData);
+    final riskScore = _calculateRisk(features);
+    final category = _getRiskCategory(riskScore);
+    final advice = _getAdvice(riskScore, weekData.last);
 
-      _interpreter!.run(input, output);
-      
-      final riskScore = (output[0] * 100).clamp(0.0, 100.0);
-      final category = _getRiskCategory(riskScore);
-      final advice = _getAdvice(riskScore, weekData.last);
+    stopwatch.stop();
 
-      stopwatch.stop();
-
-      return RiskPrediction(
-        date: DateTime.now(),
-        riskScore: riskScore,
-        riskCategory: category,
-        advice: advice,
-        inferenceTimeMs: stopwatch.elapsedMilliseconds,
-      );
-    } catch (e) {
-      debugPrint('Prediction error: $e');
-      return _mockPrediction(stopwatch.elapsedMilliseconds);
-    }
+    return RiskPrediction(
+      date: DateTime.now(),
+      riskScore: riskScore,
+      riskCategory: category,
+      advice: advice,
+      inferenceTimeMs: stopwatch.elapsedMilliseconds,
+    );
   }
 
-  Float32List _prepareFeatures(List<DailyData> weekData) {
-    final features = Float32List(21);
+  List<double> _prepareFeatures(List<DailyData> weekData) {
     final lastWeek = weekData.take(7).toList();
     
-    // Aggregate weekly features
-    features[0] = lastWeek.map((d) => d.stepsMean).reduce((a, b) => a + b) / 7;
-    features[1] = lastWeek.map((d) => d.stepsStd).reduce((a, b) => a + b) / 7;
-    features[2] = lastWeek.map((d) => d.chargeNightPct).reduce((a, b) => a + b) / 7;
-    features[3] = lastWeek.map((d) => d.smsLoanCount).reduce((a, b) => a + b).toDouble();
-    features[4] = lastWeek.map((d) => d.idlePeriods).reduce((a, b) => a + b).toDouble();
+    return [
+      lastWeek.map((d) => d.stepsMean).reduce((a, b) => a + b) / 7,
+      lastWeek.map((d) => d.stepsStd).reduce((a, b) => a + b) / 7,
+      lastWeek.map((d) => d.chargeNightPct).reduce((a, b) => a + b) / 7,
+      lastWeek.map((d) => d.smsLoanCount).reduce((a, b) => a + b).toDouble(),
+      lastWeek.map((d) => d.idlePeriods).reduce((a, b) => a + b).toDouble(),
+    ];
+  }
+
+  double _calculateRisk(List<double> features) {
+    // Simple rule-based risk calculation
+    double mobilityFactor = 1 - (features[0] / 10000).clamp(0.0, 1.0);
+    double chargingFactor = features[2];
+    double smsFactor = (features[3] / 5).clamp(0.0, 1.0);
+    double idleFactor = (features[4] / 7).clamp(0.0, 1.0);
     
-    // Add more engineered features (normalized)
-    for (int i = 5; i < 21; i++) {
-      features[i] = (features[i % 5] * (i / 5.0)).clamp(0.0, 1.0);
-    }
+    double risk = (0.4 * mobilityFactor + 
+                   0.3 * chargingFactor + 
+                   0.2 * smsFactor + 
+                   0.1 * idleFactor) * 100;
     
-    return features;
+    // Add some randomness for demo
+    risk += (DateTime.now().millisecond % 20) - 10;
+    
+    return risk.clamp(0.0, 100.0);
   }
 
   RiskPrediction _mockPrediction(int inferenceTime) {
-    // Mock prediction for development/demo
     final riskScore = 45.0 + (DateTime.now().millisecond % 40);
     return RiskPrediction(
       date: DateTime.now(),
@@ -101,15 +88,15 @@ class MLService {
 
   String _getAdvice(double riskScore, DailyData? lastDay) {
     if (riskScore > 70) {
-      return 'Gura inka imwe kugira ngo ugabanye umuvunyi'; // Sell one goat to reduce risk
+      return 'Gura inka imwe kugira ngo ugabanye umuvunyi';
     } else if (riskScore > 40) {
-      return 'Ongera genda ku isoko'; // Increase market trips
+      return 'Ongera genda ku isoko';
     } else {
-      return 'Komeza gutyo, uri ku nzira nziza'; // Keep it up, you\'re on the right track
+      return 'Komeza gutyo, uri ku nzira nziza';
     }
   }
 
   void dispose() {
-    _interpreter?.close();
+    // Nothing to dispose in mock version
   }
 }

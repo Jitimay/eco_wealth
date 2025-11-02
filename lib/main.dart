@@ -2,23 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'blocs/app_bloc.dart';
-import 'screens/setup_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/main_navigation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Request permissions
   await _requestPermissions();
-  
+
   runApp(EchoWealthApp());
 }
 
 Future<void> _requestPermissions() async {
   await [
     Permission.sensors,
-    Permission.sms,
-    Permission.phone,
   ].request();
 }
 
@@ -56,15 +54,15 @@ class EchoWealthApp extends StatelessWidget {
                 ),
               );
             }
-            
+
             if (state is SetupRequired) {
-              return SetupScreen();
+              return OnboardingScreen();
             }
-            
+
             if (state is AppReady) {
-              return DashboardScreen();
+              return MainNavigationScreen();
             }
-            
+
             if (state is AppError) {
               return Scaffold(
                 body: Center(
@@ -76,7 +74,8 @@ class EchoWealthApp extends StatelessWidget {
                       Text('Error: ${state.message}'),
                       SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () => context.read<AppBloc>().add(InitializeApp()),
+                        onPressed: () =>
+                            context.read<AppBloc>().add(InitializeApp()),
                         child: Text('Retry'),
                       ),
                     ],
@@ -84,7 +83,7 @@ class EchoWealthApp extends StatelessWidget {
                 ),
               );
             }
-            
+
             return Container();
           },
         ),

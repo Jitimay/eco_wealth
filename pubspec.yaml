@@ -43,10 +43,9 @@ dependencies:
   # Sensors
   sensors_plus: ^4.0.2
   battery_plus: ^5.0.2
-  telephony: ^0.2.0
   
   # ML
-  tflite_flutter: ^0.10.4
+  # tflite_flutter: ^0.10.4
   
   # Voice
   flutter_tts: ^3.8.5
